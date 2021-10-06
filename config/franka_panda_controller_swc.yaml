@@ -1,0 +1,114 @@
+force_controller_NR:
+    type: franka_panda_controller_swc/ForceControllerNR
+    arm_id: panda
+    joint_names:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+    publish_rate: 10.0
+
+joint_impedance_controller_swc:
+    type: franka_panda_controller_swc/JointImpedanceController
+    arm_id: panda
+    joint_names:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+    k_gains:
+        - 100.0
+        - 100.0
+        - 100.0
+        - 100.0
+        - 100.0
+        - 50.0
+        - 50.0
+    d_gains:
+        - 20.0
+        - 20.0
+        - 20.0
+        - 20.0
+        - 20.0
+        - 15.0
+        - 15.0
+    radius: 0.1
+    acceleration_time: 2.0
+    vel_max: 0.15
+    publish_rate: 10.0
+    coriolis_factor: 1.0
+
+cartesian_impedance_controller_NR:
+    type: franka_panda_controller_swc/CartesianImpedanceControllerNR
+    arm_id: panda
+    joint_names:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+
+cartesian_impedance_controller:
+    type: franka_panda_controller_swc/CartesianImpedanceController
+    arm_id: panda
+    joint_names:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+
+dual_arm_cartesian_impedance_controller:
+    type: franka_panda_controller_swc/DualArmCartesianImpedanceController
+    right:
+        arm_id: panda_1
+        joint_names:
+            - panda_1_joint1
+            - panda_1_joint2
+            - panda_1_joint3
+            - panda_1_joint4
+            - panda_1_joint5
+            - panda_1_joint6
+            - panda_1_joint7
+    left:
+        arm_id: panda_2
+        joint_names:
+            - panda_2_joint1
+            - panda_2_joint2
+            - panda_2_joint3
+            - panda_2_joint4
+            - panda_2_joint5
+            - panda_2_joint6
+            - panda_2_joint7
+
+joint_position_controller:
+    type: franka_panda_controller_swc/JointPositionController
+    joint_names:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7
+
+joint_velocity_controller:
+    type: franka_panda_controller_swc/JointVelocityController
+    joint_names:
+        - panda_joint1
+        - panda_joint2
+        - panda_joint3
+        - panda_joint4
+        - panda_joint5
+        - panda_joint6
+        - panda_joint7

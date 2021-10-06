@@ -1,0 +1,37 @@
+<library path="lib/libfranka_panda_controller_swc">
+  <class name="franka_panda_controller_swc/JointImpedanceController" type="franka_panda_controller_swc::JointImpedanceController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that tracks a cartesian path with a joint impedance controller that compensates coriolis torques. The torque commands are compared to measured torques in Console outputs.
+    </description>
+  </class>
+  <class name="franka_panda_controller_swc/ForceControllerNR" type="franka_panda_controller_swc::ForceControllerNR" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A PI controller that applies a force corresponding to a user-provided desired mass in the z axis. The desired mass value can be modified online with dynamic reconfigure.
+    </description>
+  </class>
+  <class name="franka_panda_controller_swc/CartesianImpedanceControllerNR" type="franka_panda_controller_swc::CartesianImpedanceControllerNR" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that renders a spring damper system in cartesian space. Compliance parameters and the equilibrium pose can be modified online with dynamic reconfigure and an interactive marker respectively.
+    </description>
+  </class>
+  <class name="franka_panda_controller_swc/CartesianImpedanceController" type="franka_panda_controller_swc::CartesianImpedanceController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that renders a spring damper system in cartesian space. Compliance parameters and the equilibrium pose can be modified online with dynamic reconfigure and an interactive marker respectively.
+    </description>
+  </class>
+  <class name="franka_panda_controller_swc/DualArmCartesianImpedanceController" type="franka_panda_controller_swc::DualArmCartesianImpedanceController" base_class_type="controller_interface::ControllerBase">
+      <description>
+          A controller that renders Cartesian impedance based tracking of separate target poses for 2 panda arms.
+      </description>
+  </class>
+  <class name="franka_panda_controller_swc/JointPositionController" type="franka_panda_controller_swc::JointPositionController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that executes a short motion based on joint positions to demonstrate correct usage
+    </description>
+  </class>
+  <class name="franka_panda_controller_swc/JointVelocityController" type="franka_panda_controller_swc::JointVelocityController" base_class_type="controller_interface::ControllerBase">
+    <description>
+      A controller that executes a short motion based on joint velocities to demonstrate correct usage
+    </description>
+  </class>
+</library>
