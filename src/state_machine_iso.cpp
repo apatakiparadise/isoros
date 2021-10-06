@@ -38,6 +38,8 @@ bool StateMachineIsometric::init(Eigen::Vector3d initial_pos_d) {
     standby_time = 0;
     timeAtTarget = 0;
 
+    //init timers
+    stateLoopTime = ctime::time();
 
     mode = FREE_MOTION_MODE;
     target_no = 0;
@@ -49,7 +51,8 @@ bool StateMachineIsometric::init(Eigen::Vector3d initial_pos_d) {
     return true;
 }
 
-bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller) {
+//run an iteration of the control/comms loop, sending information as necessary
+bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::Vector3d force_from_controller) {
 
     //should be called by the controller every iteration
     //within this function we will look at triggers and things to manage publishing/subscribing
@@ -58,23 +61,26 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller) {
 
     //so.... 
 
+    //update our recorded robot position
     set_robot_pos(pos_from_controller); //TODO: should this be in an if/else loop with the below?
+    //TODO: do we need a set_robot_force() function? Maybe not...
 
+    time_t simTime = ctime::time(); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
 
     if (mode==ISOMETRIC_MODE) {
 
         //update the avatar position based on the latest data
-        avatar_position = contrComms::get_latest_isosim_position;
+        avatar_position = contrComms.get_latest_isosim_position();
         //we are sending force to isosim
-        contrComms::publish_force(...);
+        contrComms.publish_force(force_from_controller);
     }
 
-    if (100Hztrig() ) { //TODO: implement actual trigger
+    if (eventTimer(CONTROL_PERIOD,&stateLoopTime) ) { //TODO: implement actual trigger
         //we are doing our regular update
         
         if (mode == FREE_MOTION_MODE) {
 
-            contrComms::publish_position(...);
+            contrComms.publish_position(...);
         }
         
         //run state machine logic
@@ -158,17 +164,17 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller) {
     }
 
     return true;
-    //TODO: finish update function
+    // TODO: finish update function
 }
 
 //-----------------setters-----------------
 
 /*******
-Sets robot position based on input from robot sensors
+Sets recorded robot position based on input from robot sensors
 Called inside update()
-Returns true // TODO: error checking
+Returns true // TODO: error checking 
 *******/
-bool StateMachineIsometric::set_robot_pos(Eigen::Vtarget_pos
+bool StateMachineIsometric::set_robot_pos(Eigen::Vector3d new_pos_d) {
 
     if (mode == FREE_MOTION_MODE) {
 
@@ -198,7 +204,9 @@ Eigen::Vector3d StateMachineIsometric::get_avatar_pos_iso(void) {
 }
 
 
-bool check_task_complete(void) {
+
+
+bool StateMachineIsometric::check_task_complete(void) {
     //checks if task has been complete for the required time within the required radius
     
     Eigen::Vector3d posErr = avatar_position - target_pos; //TODO: is this threadsafe?
@@ -237,7 +245,7 @@ bool check_task_complete(void) {
 }
 
 
-bool handle_next_task(void) {
+bool StateMachineIsometric::handle_next_task(void) {
 
     //cycles between tasks/modes
     //free (1,2,3,4,5) --> iso (1,2,3,4,5) --> mix(1,2,3,4,5)
@@ -246,7 +254,18 @@ bool handle_next_task(void) {
     //else return true
 }
 
+bool StateMachineIsometric::eventTimer(time_t period, time_t* prevTime) {
 
+    time_t currTime = ctime::time();
+
+    if (currTime - *prevTime >= period) {
+        //at least one period has elapsed since this function last returned true
+        *prevTime = currTime;
+        return true;
+    } else {
+        return false;
+    }
+}
 
 //////////////////////////////////////////////////////////////////
 /*****************************************************************

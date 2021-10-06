@@ -29,6 +29,7 @@ add_message_files(FILES
   JointTorqueComparison.msg
   UnityInput.msg
   IsosimOutput.msg
+  ForceOutput.msg
   Vector3.msg
   Velocity.msg
 )

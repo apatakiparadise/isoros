@@ -55,6 +55,8 @@ Date: 30.08.21
 #define STANDBY_PERIOD 10 //s
 #define COMPLETED_PERIOD 10 //s
 
+#define CONTROL_PERIOD 0.01 //100Hz
+
 namespace franka_panda_controller_swc {
 
 
@@ -71,7 +73,7 @@ class StateMachineIsometric {
         bool get_state(void);
         Eigen::Vector3d get_robot_pos(void);
 
-        bool update(void); //updates pos, checks if we've reached target
+        bool update(Eigen::Vector3d pos_from_controller, Eigen::Vector3d force_from_controller); //updates pos, checks if we've reached target
 
     private:
         Eigen::Vector3d robot_position_d; //actual position of franka
@@ -109,6 +111,12 @@ class StateMachineIsometric {
         bool check_task_complete(void); //returns true if the position has been within TARGET_RADIUS for TARGET_TIME
         bool handle_next_task(void); //handles next task (cycles through targets and modes)
 
+
+        //checks whether it's been the right amount of time since we executed the timer event
+        bool eventTimer(int period, time_t* prevTime);
+
+        time_t stateLoopTime;
+}
         
 /*
 //TODO: figure out a better system for multi-tasking and updating
@@ -158,7 +166,7 @@ class ControllerComms {
         bool _comms_ack; //tells whether system is online or not
 
 
-}
+
 
 
 
