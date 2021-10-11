@@ -18,6 +18,10 @@ Date: 30.08.21
 #include <franka/robot_state.h>
 #include <franka/robot.h>
 
+#include <ctime>
+
+
+double _clock_secs(clock_t ctim);
 
 namespace franka_panda_controller_swc {
 
@@ -39,7 +43,7 @@ bool StateMachineIsometric::init(Eigen::Vector3d initial_pos_d) {
     timeAtTarget = 0;
 
     //init timers
-    stateLoopTime = ctime::time();
+    stateLoopTime = std::clock();
 
     mode = FREE_MOTION_MODE;
     target_no = 0;
@@ -65,7 +69,7 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
     set_robot_pos(pos_from_controller); //TODO: should this be in an if/else loop with the below?
     //TODO: do we need a set_robot_force() function? Maybe not...
 
-    time_t simTime = ctime::time(); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
+    clock_t simTime = std::clock(); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
 
     if (mode==ISOMETRIC_MODE) {
 
@@ -80,7 +84,7 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
         
         if (mode == FREE_MOTION_MODE) {
 
-            contrComms.publish_position(...);
+            contrComms.publish_position(target_pos);
         }
         
         //run state machine logic
@@ -91,9 +95,9 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
 
                 if (standby_time == 0) {
 
-                    standby_time = ctime::time();
-                } else if (ctime::difftime(standby_time, ctime::time()) > STANDBY_PERIOD
-                        && contrComms::check_comms_ack() ) {
+                    standby_time = std::clock();
+                } else if (   _clock_secs(std::clock() - standby_time) > STANDBY_PERIOD
+                        && contrComms.check_comms_ack() ) {
 
                     //we've been in standby long enough and everything is online
                     //time to change states
@@ -106,7 +110,7 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
                 break; //STANDBY
 
             case ISO_START:
-                if (!contrComms::check_comms_ack()) {
+                if (!contrComms.check_comms_ack()) {
 
                     //system is offline - go to stop mode
                     std::cout << "OFFLINE - STOP\n";
@@ -116,13 +120,13 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
                 if(check_task_complete()) {
 
                     timeAtTarget = 0; //target is reached, reset for next time
-                    completedTime = ctime::time();
+                    completedTime = std::clock();
                     std::cout <<"COMPLETE\n";
                     set_state(ISO_COMPLETE);
 
                 };
                 
-                break;
+                break; //ISO_START
 
 
             case ISO_STOP:
@@ -133,13 +137,13 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
             case ISO_COMPLETE:
                 //code
                 //task is complete, wait here for a few seconds
-                if ( ctime::difftime(completedTime, ctime::time()) > COMPLETED_PERIOD ) {
+                if ( _clock_secs(std::clock() - completedTime) > COMPLETED_PERIOD ) {
 
                     //we've been in the completed zone long enough to celebrate, now on to the next!
                     if (handle_next_task() == true) {
                         
                         //standby before next task
-                        std:cout << "next task, STANDBY\n";
+                        std::cout << "next task, STANDBY\n";
                         set_state(ISO_STANDBY);
                     
                     } else {
@@ -218,11 +222,11 @@ bool StateMachineIsometric::check_task_complete(void) {
         if (timeAtTarget == 0) {
             
             //we only just reached the zone - now we wait TARGET_TIME
-            timeAtTarget = ctime::time();
+            timeAtTarget = std::clock();
             
             return false;
 
-        } else if ( ctime::difftime(ctime::time(),timeAtTarget) > TARGET_TIME ) {
+        } else if ( _clock_secs(std::clock() - timeAtTarget) > TARGET_TIME ) {
             
             //we've been here long enough
 
@@ -240,7 +244,7 @@ bool StateMachineIsometric::check_task_complete(void) {
 
     }
 
-    return false   
+    return false;
 
 }
 
@@ -254,11 +258,11 @@ bool StateMachineIsometric::handle_next_task(void) {
     //else return true
 }
 
-bool StateMachineIsometric::eventTimer(time_t period, time_t* prevTime) {
+bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
 
-    time_t currTime = ctime::time();
+    clock_t currTime = std::clock();
 
-    if (currTime - *prevTime >= period) {
+    if ( _clock_secs(currTime - *prevTime) >= period) {
         //at least one period has elapsed since this function last returned true
         *prevTime = currTime;
         return true;
@@ -279,7 +283,7 @@ bool StateMachineIsometric::eventTimer(time_t period, time_t* prevTime) {
     
 
      //start rosbridge
-
+    
      //set params for initial message
 
      //publish first message (control)
@@ -314,3 +318,12 @@ bool ControllerComms::check_comms_ack(void){
 
 
 } //namespace franka_panda_controller_swc
+
+
+//PRIVATE HELPER FUNCTIONS
+
+/*converts clock ticks into seconds */
+double _clock_secs(clock_t ctim) {
+
+    return (double) ((double) ctim) / ((double) CLOCKS_PER_SEC) ;
+}

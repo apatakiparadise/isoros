@@ -33,7 +33,7 @@ Date: 30.08.21
 
 // #include <franka_panda_controller_swc/comms_iso.h>
 
-
+namespace franka_panda_controller_swc {
 
 // State definitions
 #define ISO_STANDBY 0
@@ -46,18 +46,18 @@ Date: 30.08.21
 #define ISOMETRIC_MODE 1
 
 //TODO: #def for target positions (or include an array of target positions?? could just be part of the class definition)
-#define NUM_TARGET_POS 3
+#define NUM_TARGET_POS 5 //number of positions
 #define TARGET_RADIUS 5 // max distance from target to be considered achieved //TODO: what's the units here??
 #define TARGET_TIME 5 //time in seconds that the avatar must be in the required zone for it to be considered complete
 
 
 //wait triggers
-#define STANDBY_PERIOD 10 //s
-#define COMPLETED_PERIOD 10 //s
+#define STANDBY_PERIOD 10 //secs
+#define COMPLETED_PERIOD 10 //secs
 
-#define CONTROL_PERIOD 0.01 //100Hz
+#define CONTROL_PERIOD 0.01 //secs, 100Hz
 
-namespace franka_panda_controller_swc {
+
 
 
 class StateMachineIsometric {
@@ -87,25 +87,26 @@ class StateMachineIsometric {
         int protocol_state;
         bool mode; // free/iso
         int target_no;
-        time_t standby_time; //Stores the time we first enter standby mode. 
+        Eigen::Vector3d target_pos;
+        clock_t standby_time; //Stores the time we first enter standby mode. 
                 //Used to count how long we've been in ISO_STANDBY state. Set to 0 at init as well as whenever we leave ISO_STANDBY
-        time_t timeAtTarget; //time that the avatar has been consistently at the right target spot
+        clock_t timeAtTarget; //time that the avatar has been consistently at the right target spot
         bool targetReached; //represents whether or not the task has been accomplished
 
-        time_t completedTime; //time that we completed the last task (used to check how long we've been in ISO_COMPLETE)
+        clock_t completedTime; //time that we completed the last task (used to check how long we've been in ISO_COMPLETE)
 
 
         Eigen::Vector3d TARGETS_XYZ[NUM_TARGET_POS] = {
-          (1,1,0), (1,2,0), (2,1,0), (2,2,0), (3,1,0)
+          {1,1,0}, {1,2,0}, {2,1,0}, {2,2,0}, {3,1,0}
         }; //TODO
 
-        bool set_mode(bool); //sets free motion/iso in both robot controller and comms
+       
 
         Eigen::Vector3d get_avatar_pos_iso(void); //gets avatar position from comms during isometric exercises
 
         //state/mode functions
         void set_state(int state);
-        void set_mode(bool mode);
+        void set_mode(bool mode); //sets free motion/iso in both robot controller and comms
 
         //task-related functions
         bool check_task_complete(void); //returns true if the position has been within TARGET_RADIUS for TARGET_TIME
@@ -113,10 +114,10 @@ class StateMachineIsometric {
 
 
         //checks whether it's been the right amount of time since we executed the timer event
-        bool eventTimer(int period, time_t* prevTime);
+        bool eventTimer(double period, clock_t* prevTime);
 
-        time_t stateLoopTime;
-}
+        clock_t stateLoopTime;
+};
         
 /*
 //TODO: figure out a better system for multi-tasking and updating
@@ -141,7 +142,7 @@ class StateMachineIsometric {
 
 */
 
-}
+
 
 //Handles communication within the controller thread
 class ControllerComms {
@@ -153,7 +154,7 @@ class ControllerComms {
         //publishes franka position to commshub
         bool publish_position(Eigen::Vector3d pos_to_commshub);
         //publishes control data to both isosim and commshub
-        bool publish_control(Eigne::Vector3d control_to_all);
+        bool publish_control();
         Eigen::Vector3d get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
         bool check_comms_ack(void); //threadsafe function for getting the state of the ack
 
@@ -167,6 +168,8 @@ class ControllerComms {
 
 
 
+
+};
 
 
 
