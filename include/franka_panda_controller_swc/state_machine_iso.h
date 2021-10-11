@@ -166,7 +166,17 @@ class ControllerComms {
         Eigen::Vector3d _latest_pos; //holds latest position, threadsafe
         bool _comms_ack; //tells whether system is online or not
 
+        //subscribers (isosim and communicator)
+        ros::Subscriber sub_isosim_publisher_;
+        ros::Subscriber sub_comms_publisher_;
+        void isosim_publisher(const geometry_msgs::Vector3ConstPtr& msg);
+        void comms_publisher(const geometry_msgs::Vector3ConstPtr& msg);
 
+        // publishers (isosim and communicator)
+        franka_hw::TriggerRate isosim_rate_trigger_{1.0};
+        franka_hw::TriggerRate comms_rate_trigger_{1.0};
+        realtime_tools::RealtimePublisher<ForceOutput> isosim_publisher_; //TODO figure out how to add this to /opt/ros/melodic/...
+        realtime_tools::RealtimePublisher<CommsOutput> comms_publisher_;
 
 
 };

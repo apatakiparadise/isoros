@@ -30,6 +30,8 @@ add_message_files(FILES
   UnityInput.msg
   IsosimOutput.msg
   ForceOutput.msg
+  ArmJointPos.msg
+  ControlOutput.msg
   Vector3.msg
   Velocity.msg
 )
