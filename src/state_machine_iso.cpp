@@ -300,7 +300,7 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
 Eigen::Vector3d ControllerComms::get_latest_isosim_position(void) {
 
     //TODO: needs to be threadsafe here...
-    return _latest_pos
+    return _latest_pos;
 }
 
 

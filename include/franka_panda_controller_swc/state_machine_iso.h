@@ -27,7 +27,8 @@ Date: 30.08.21
 #include <Eigen/Core>
 #include <franka_hw/trigger_rate.h>
 #include <realtime_tools/realtime_publisher.h>
-#include <franka_panda_controller_swc/UnityInput.h>
+#include <franka_panda_controller_swc/ForceOutput.h>
+#include <franka_panda_controller_swc/ControlOutput.h>
 #include <franka_panda_controller_swc/desired_mass_paramConfig.h>
 #include <geometry_msgs/Vector3.h>
 
@@ -158,6 +159,12 @@ class ControllerComms {
         Eigen::Vector3d get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
         bool check_comms_ack(void); //threadsafe function for getting the state of the ack
 
+        //init helpers
+        void set_isosim_publish_rate(double rate);
+        void set_comms_publish_rate(double rate);
+        
+
+
     private:
         Eigen::Vector3d subscribe_isosim_position(void); //callback function. Sets a position variable that can be accessed by force-field functions, and published to the world
         bool subscribe_comms_ack(void); //can be fairly infrequent
@@ -176,7 +183,7 @@ class ControllerComms {
         franka_hw::TriggerRate isosim_rate_trigger_{1.0};
         franka_hw::TriggerRate comms_rate_trigger_{1.0};
         realtime_tools::RealtimePublisher<ForceOutput> isosim_publisher_; //TODO figure out how to add this to /opt/ros/melodic/...
-        realtime_tools::RealtimePublisher<CommsOutput> comms_publisher_;
+        realtime_tools::RealtimePublisher<ControlOutput> comms_publisher_;
 
 
 };
