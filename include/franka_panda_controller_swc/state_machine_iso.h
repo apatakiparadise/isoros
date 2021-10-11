@@ -58,13 +58,80 @@ namespace franka_panda_controller_swc {
 
 #define CONTROL_PERIOD 0.01 //secs, 100Hz
 
+class StateMachineIsometric;
 
+//Handles communication within the controller thread
+class ControllerComms {
+    public:
+
+        struct ForceTime {
+            
+            Eigen::Vector3d force;
+            double time;
+        };
+
+        struct ArmJointPos {
+
+            Eigen::Vector3d elbow;
+            Eigen::Vector3d wrist;
+            double time;
+        };
+
+        struct ControlInfo {
+
+            ArmJointPos position;
+            double time;
+            int target_no;
+            bool reached;
+        };
+
+        //initialises comms
+        bool init(Eigen::Vector3d initial_avatar_pos, int iso_state, int iso_mode, int targ_no, ros::NodeHandle& handle);
+        //publishes force to isosim
+        bool publish_force(ForceTime forceToIsosim);
+        //publishes franka position to commshub //REDUNDANT AS THIS IS PUBLISHED WITH CONTROL // TODO: check the timings to see if this is okay
+        bool publish_position(Eigen::Vector3d pos_to_commshub);
+        //publishes control data to both isosim and commshub
+        bool publish_control(ControlInfo control_info);
+        Eigen::Vector3d get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
+        bool check_comms_ack(void); //threadsafe function for getting the state of the ack
+
+        //init helpers
+        void set_isosim_publish_rate(double rate);
+        void set_comms_publish_rate(double rate);
+        
+
+
+    private:
+        Eigen::Vector3d subscribe_isosim_position(void); //callback function. Sets a position variable that can be accessed by force-field functions, and published to the world
+        bool subscribe_comms_ack(void); //can be fairly infrequent
+
+
+
+
+        Eigen::Vector3d _latest_pos; //holds latest position, threadsafe
+        bool _comms_ack; //tells whether system is online or not
+
+        //subscribers (isosim and communicator)
+        ros::Subscriber sub_isosim_publisher_;
+        ros::Subscriber sub_control_publisher_;
+        void isosim_publisher(const geometry_msgs::Vector3ConstPtr& msg);
+        void control_publisher(const geometry_msgs::Vector3ConstPtr& msg);
+
+        // publishers (isosim and communicator)
+        franka_hw::TriggerRate isosim_rate_trigger_{1.0};
+        franka_hw::TriggerRate comms_rate_trigger_{1.0};
+        realtime_tools::RealtimePublisher<ForceOutput> isosim_publisher_; //TODO figure out how to add this to /opt/ros/melodic/...
+        realtime_tools::RealtimePublisher<ControlOutput> control_publisher_;
+
+
+};
 
 
 class StateMachineIsometric {
 
     public:
-        bool init(Eigen::Vector3d initial_pos_d);
+        bool init(Eigen::Vector3d initial_pos_d, ros::NodeHandle& handle);
         // setters
         bool set_state(void);
         bool set_robot_pos(Eigen::Vector3d new_pos_d); //called by ros controller
@@ -76,12 +143,15 @@ class StateMachineIsometric {
 
         bool update(Eigen::Vector3d pos_from_controller, Eigen::Vector3d force_from_controller); //updates pos, checks if we've reached target
 
+        
+
     private:
         Eigen::Vector3d robot_position_d; //actual position of franka
 
         //represented position of avatar (matches franka in free motion, based on isosim input in isometric)
         Eigen::Vector3d avatar_position; 
-        
+        ControllerComms::ControlInfo latestControl;
+
         // IsoCommunicator Comms_Hub;
         ControllerComms contrComms;
 
@@ -91,6 +161,7 @@ class StateMachineIsometric {
         Eigen::Vector3d target_pos;
         clock_t standby_time; //Stores the time we first enter standby mode. 
                 //Used to count how long we've been in ISO_STANDBY state. Set to 0 at init as well as whenever we leave ISO_STANDBY
+        clock_t startTime; //The time we start the simulation
         clock_t timeAtTarget; //time that the avatar has been consistently at the right target spot
         bool targetReached; //represents whether or not the task has been accomplished
 
@@ -144,49 +215,6 @@ class StateMachineIsometric {
 */
 
 
-
-//Handles communication within the controller thread
-class ControllerComms {
-    public:
-        //initialises comms
-        bool init(Eigen::Vector3d initial_avatar_pos, int iso_state, int iso_mode, int targ_no);
-        //publishes force to isosim
-        bool publish_force(Eigen::Vector3d force_to_isosim);
-        //publishes franka position to commshub
-        bool publish_position(Eigen::Vector3d pos_to_commshub);
-        //publishes control data to both isosim and commshub
-        bool publish_control();
-        Eigen::Vector3d get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
-        bool check_comms_ack(void); //threadsafe function for getting the state of the ack
-
-        //init helpers
-        void set_isosim_publish_rate(double rate);
-        void set_comms_publish_rate(double rate);
-        
-
-
-    private:
-        Eigen::Vector3d subscribe_isosim_position(void); //callback function. Sets a position variable that can be accessed by force-field functions, and published to the world
-        bool subscribe_comms_ack(void); //can be fairly infrequent
-
-
-        Eigen::Vector3d _latest_pos; //holds latest position, threadsafe
-        bool _comms_ack; //tells whether system is online or not
-
-        //subscribers (isosim and communicator)
-        ros::Subscriber sub_isosim_publisher_;
-        ros::Subscriber sub_comms_publisher_;
-        void isosim_publisher(const geometry_msgs::Vector3ConstPtr& msg);
-        void comms_publisher(const geometry_msgs::Vector3ConstPtr& msg);
-
-        // publishers (isosim and communicator)
-        franka_hw::TriggerRate isosim_rate_trigger_{1.0};
-        franka_hw::TriggerRate comms_rate_trigger_{1.0};
-        realtime_tools::RealtimePublisher<ForceOutput> isosim_publisher_; //TODO figure out how to add this to /opt/ros/melodic/...
-        realtime_tools::RealtimePublisher<ControlOutput> comms_publisher_;
-
-
-};
 
 
 

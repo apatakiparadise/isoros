@@ -72,6 +72,7 @@ add_library(franka_panda_controller_swc
   src/joint_position_controller.cpp
   src/joint_velocity_controller.cpp
   src/dual_arm_cartesian_impedance_controller.cpp
+  src/state_machine_iso.cpp
 )
 
 add_dependencies(franka_panda_controller_swc

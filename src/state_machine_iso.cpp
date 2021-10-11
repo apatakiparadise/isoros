@@ -28,7 +28,7 @@ namespace franka_panda_controller_swc {
 /****************PUBLIC****************************************/
 
 //initialise communication and states
-bool StateMachineIsometric::init(Eigen::Vector3d initial_pos_d) {
+bool StateMachineIsometric::init(Eigen::Vector3d initial_pos_d, ros::NodeHandle& handle) {
 
 
     //setup triggers and things
@@ -50,7 +50,7 @@ bool StateMachineIsometric::init(Eigen::Vector3d initial_pos_d) {
     target_pos = TARGETS_XYZ[target_no];
 
     // Comms_Hub.init(robot_position_d, protocol_state, target_no);
-    contrComms.init(robot_position_d, protocol_state, mode, target_no);
+    contrComms.init(robot_position_d, protocol_state, mode, target_no, handle);
     
     return true;
 }
@@ -64,19 +64,23 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
     //but publishing to isosim needs to be every iteration (but still deterministic!)
 
     //so.... 
-
     //update our recorded robot position
     set_robot_pos(pos_from_controller); //TODO: should this be in an if/else loop with the below?
     //TODO: do we need a set_robot_force() function? Maybe not...
 
-    clock_t simTime = std::clock(); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
+    clock_t simTime = _clock_secs(std::clock() - startTime); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
+
+    mode = ISOMETRIC_MODE; //TODO: Delete de bug
 
     if (mode==ISOMETRIC_MODE) {
 
         //update the avatar position based on the latest data
         avatar_position = contrComms.get_latest_isosim_position();
         //we are sending force to isosim
-        contrComms.publish_force(force_from_controller);
+        ControllerComms::ForceTime forceTime_;
+        forceTime_.force = force_from_controller;
+        forceTime_.time = simTime;
+        contrComms.publish_force(forceTime_);
     }
 
     if (eventTimer(CONTROL_PERIOD,&stateLoopTime) ) { //TODO: implement actual trigger
@@ -277,17 +281,30 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
  ****************************************************************/
  /////////////////////////////////////////////////////////////////
 
- 
+ /*
+ Initialise comms
+ rate triggers should already have been set by controller
+    node handle params using the set() functions of this class
+
+ */
  bool ControllerComms::init(Eigen::Vector3d initial_avatar_pos,
-        int iso_state, int iso_mode, int targ_no) {
+        int iso_state, int iso_mode, int targ_no, ros::NodeHandle& handle) {
     
 
      //start rosbridge
-    
+    isosim_publisher_.init(handle, "force_output",1);
+    control_publisher_.init(handle, "control_output",1);
      //set params for initial message
-
-     //publish first message (control)
-     publish_control();
+    ControlInfo initialControl;
+    initialControl.position.wrist = initial_avatar_pos;
+    initialControl.position.elbow = initial_avatar_pos - Eigen::Vector3d(1,0,0);
+    initialControl.time = 0; // (TODO: get time from somewhere)
+    initialControl.position.time = initialControl.time;
+    initialControl.reached = false;
+    initialControl.target_no = 0;
+    
+    //publish first message (control)
+    publish_control(initialControl);
 
      //receive answer, hopefully
     //  subscribe_comms_ack();
@@ -297,12 +314,72 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
 
  }
 
+bool ControllerComms::publish_force(ControllerComms::ForceTime forceToIsosim) {
+
+    //coordinate transform (ros to opensim):
+        // x becomes -x
+        // y becomes z
+        // z becomes y
+    if (isosim_publisher_.trylock()) {
+        isosim_publisher_.msg_.force.x = - forceToIsosim.force.x();
+        isosim_publisher_.msg_.force.y = + forceToIsosim.force.z();
+        isosim_publisher_.msg_.force.z = + forceToIsosim.force.y();
+        isosim_publisher_.msg_.time = forceToIsosim.time;
+
+        isosim_publisher_.unlockAndPublish();
+
+        return true;
+    } else {
+        return false;
+    }
+}
+
+bool ControllerComms::publish_position(Eigen::Vector3d pos_to_commshub) {
+    return false ; //TODO: DEPRECATE THIS FUNCTION
+}
+
+//publishes control information
+bool ControllerComms::publish_control(ControllerComms::ControlInfo info) {
+    
+    //coordinate transform (ros to opensim): //TODO: change this to the Unity coordinate transform
+        // x becomes -x
+        // y becomes z
+        // z becomes y
+    if (control_publisher_.trylock()) {
+        control_publisher_.msg_.avatarpos.elbow.x = - info.position.elbow.x();
+        control_publisher_.msg_.avatarpos.elbow.y = + info.position.elbow.z();
+        control_publisher_.msg_.avatarpos.elbow.z = + info.position.elbow.y();
+        control_publisher_.msg_.avatarpos.wrist.x = - info.position.wrist.x();
+        control_publisher_.msg_.avatarpos.wrist.y = + info.position.wrist.z();
+        control_publisher_.msg_.avatarpos.wrist.z = + info.position.elbow.y();
+        control_publisher_.msg_.avatarpos.time = info.position.time;
+        control_publisher_.msg_.reached = info.reached;
+        control_publisher_.msg_.targetno = info.target_no;
+        control_publisher_.msg_.time = info.time;
+
+        control_publisher_.unlockAndPublish();
+
+        return true;
+    } else {
+        return false;
+    }
+}
+
 Eigen::Vector3d ControllerComms::get_latest_isosim_position(void) {
 
     //TODO: needs to be threadsafe here...
     return _latest_pos;
 }
 
+void ControllerComms::set_isosim_publish_rate(double rate) {
+
+    isosim_rate_trigger_ = franka_hw::TriggerRate(rate);
+}
+
+void ControllerComms::set_comms_publish_rate(double rate) {
+
+    comms_rate_trigger_ = franka_hw::TriggerRate(rate);
+}
 
 /**********PRIVATE******************************************/
 

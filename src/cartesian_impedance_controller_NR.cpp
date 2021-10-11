@@ -91,6 +91,11 @@ bool CartesianImpedanceControllerNR::init(hardware_interface::RobotHW* robot_hw,
     }
   }
   
+  //***********INIT STATEMACHINE**************************
+  Eigen::Vector3d initialPos = {0,0,0}; //TODO: change this to extract initial pos
+  stateMachine.init(initialPos,node_handle);
+  //**********END INIT STATEMACHINE***********************
+
   unity_publisher_.init(node_handle, "unity_input", 1);
 
   dynamic_reconfigure_compliance_param_node_ =
@@ -235,9 +240,9 @@ void CartesianImpedanceControllerNR::update(const ros::Time& /*time*/,
     force_acc = force_acc + force_input;
     uni_input_f = force_const * force_acc / 500;
 
-    std::cout << force_sensor(0) << "  ";
-    std::cout << force_sensor(1) << "  ";
-    std::cout << force_sensor(2) << "\n";
+    // std::cout << force_sensor(0) << "  "; //UNCOMMENT THIS IF NEEDED
+    // std::cout << force_sensor(1) << "  ";
+    // std::cout << force_sensor(2) << "\n";
 
     /*
     Eigen::Map<Eigen::Matrix<double, 6,1>> force_sensor(robot_state.K_F_ext_hat_K.data());
@@ -282,6 +287,11 @@ void CartesianImpedanceControllerNR::update(const ros::Time& /*time*/,
     std::cout << "  x: "<< force_input(0);
     std::cout << "  y: "<< force_input(1);
     std::cout << "  z: "<< force_input(2) << "\n";*/
+
+    Eigen::Vector3d currentForce(uni_input_f[0],uni_input_f[1],uni_input_f[2]); //TODO: this isn't the right force variable
+    Eigen::Vector3d currentPos(uni_input_p[0],uni_input_p[1],uni_input_p[2]);
+    stateMachine.update(currentPos,currentForce);
+
   }
 }
 
@@ -301,9 +311,9 @@ void CartesianImpedanceControllerNR::complianceParamCallback(
     franka_panda_controller_swc::compliance_paramConfig& config,
     uint32_t /*level*/) {
   cartesian_stiffness_target_.setIdentity();
-  cartesian_stiffness_target_.topLeftCorner(3, 3)
+  cartesian_stiffness_target_.topLeftCorner(3, 3) //translational stiffness
       << config.translational_stiffness * Eigen::Matrix3d::Identity();
-  cartesian_stiffness_target_.bottomRightCorner(3, 3)
+  cartesian_stiffness_target_.bottomRightCorner(3, 3) //rotational stiffness (TODO: increase)
       << config.rotational_stiffness * Eigen::Matrix3d::Identity();
 
   cartesian_damping_target_.setIdentity();

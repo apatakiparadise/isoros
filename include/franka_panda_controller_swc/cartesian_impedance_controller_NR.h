@@ -22,6 +22,8 @@
 #include <franka_hw/franka_model_interface.h>
 #include <franka_hw/franka_state_interface.h>
 
+#include <franka_panda_controller_swc/state_machine_iso.h>
+
 // #include <franka_panda_controller_swc/state_machine_iso.h>
 
 namespace franka_panda_controller_swc {
@@ -79,6 +81,9 @@ class CartesianImpedanceControllerNR : public controller_interface::MultiInterfa
   
   franka_hw::TriggerRate rate_trigger_{1.0};
   realtime_tools::RealtimePublisher<UnityInput> unity_publisher_;
+
+  //StateMachine and associated ControlComms
+  StateMachineIsometric stateMachine;
 };
 
 }  // namespace franka_panda_controller_swc
