@@ -38,6 +38,8 @@
   <depend>pluginlib</depend>
   <depend>realtime_tools</depend>
   <depend>roscpp</depend>
+  <depend>ecl_threads</depend>
+    <!-- ^^^added ecl above 13.10.21 -->
 
   <!-- Use exec_depend for packages you need at runtime: -->
   <exec_depend>franka_control</exec_depend>

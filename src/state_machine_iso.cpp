@@ -45,7 +45,11 @@ bool StateMachineIsometric::init(Eigen::Vector3d initial_pos_d, ros::NodeHandle&
     //init timers
     stateLoopTime = std::clock();
 
-    mode = FREE_MOTION_MODE;
+    mode = ISOMETRIC_MODE;
+    if (!handle.getParam("isometric",mode)) {
+        ROS_INFO_STREAM("StateMachine: isometric/free-motion not found. Defaulting to isometric");
+    }
+
     target_no = 0;
     target_pos = TARGETS_XYZ[target_no];
 
@@ -64,13 +68,12 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
     //but publishing to isosim needs to be every iteration (but still deterministic!)
 
     //so.... 
-    //update our recorded robot position
+    //update our recorded robot EE position
     set_robot_pos(pos_from_controller); //TODO: should this be in an if/else loop with the below?
     //TODO: do we need a set_robot_force() function? Maybe not...
 
-    clock_t simTime = _clock_secs(std::clock() - startTime); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
+    double simTime = _clock_secs(std::clock() - startTime); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
 
-    mode = ISOMETRIC_MODE; //TODO: Delete de bug
 
     if (mode==ISOMETRIC_MODE) {
 
@@ -86,10 +89,10 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
     if (eventTimer(CONTROL_PERIOD,&stateLoopTime) ) { //TODO: implement actual trigger
         //we are doing our regular update
         
-        if (mode == FREE_MOTION_MODE) {
+        // if (mode == FREE_MOTION_MODE) {
 
-            contrComms.publish_position(target_pos);
-        }
+        //     contrComms.publish_position(target_pos); //DELETE (pos will be published with control output)
+        // }
         
         //run state machine logic
     
@@ -178,7 +181,7 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
 //-----------------setters-----------------
 
 /*******
-Sets recorded robot position based on input from robot sensors
+Sets recorded robot EE position based on input from robot sensors
 Called inside update()
 Returns true // TODO: error checking 
 *******/
@@ -186,7 +189,7 @@ bool StateMachineIsometric::set_robot_pos(Eigen::Vector3d new_pos_d) {
 
     if (mode == FREE_MOTION_MODE) {
 
-        avatar_position = new_pos_d;
+        avatar_position.wrist = new_pos_d;
     }
 
     return true;
@@ -217,7 +220,7 @@ Eigen::Vector3d StateMachineIsometric::get_avatar_pos_iso(void) {
 bool StateMachineIsometric::check_task_complete(void) {
     //checks if task has been complete for the required time within the required radius
     
-    Eigen::Vector3d posErr = avatar_position - target_pos; //TODO: is this threadsafe?
+    Eigen::Vector3d posErr = avatar_position.wrist - target_pos; //TODO: is this threadsafe?
 
     if (posErr.norm() < TARGET_RADIUS) {
 
@@ -365,10 +368,17 @@ bool ControllerComms::publish_control(ControllerComms::ControlInfo info) {
     }
 }
 
-Eigen::Vector3d ControllerComms::get_latest_isosim_position(void) {
+/* Threadsafe function for getting the latest arm position received from isosim
+    Tries to unlock mutex for arm variable. If unsuccessful, will just return previous value
+*/
+ControllerComms::ArmJointPos ControllerComms::get_latest_isosim_position(void) {
 
-    //TODO: needs to be threadsafe here...
-    return _latest_pos;
+    if (_arm_pos_mutex.trylock()) {
+        current_arm_pos = _latest_arm_pos;
+        _arm_pos_mutex.unlock();
+    }
+
+    return current_arm_pos;
 }
 
 void ControllerComms::set_isosim_publish_rate(double rate) {
@@ -385,14 +395,36 @@ void ControllerComms::set_comms_publish_rate(double rate) {
 
 bool ControllerComms::check_comms_ack(void){
 
-    return _comms_ack; //TODO: needs to be threadsafe
+    return true;
+    // return _comms_ack; //TODO: needs to be threadsafe
 }
 
 
 
+void ControllerComms::isosim_subscriber_callback(const franka_panda_controller_swc::ArmJointPosConstPtr& msg) {
+    //TODO: handle transform between isosim and ros coordinates
+    
+    _arm_pos_mutex.lock(); //will throw error if mutex is not lockable
+
+    _latest_arm_pos.time = msg->time;
+    _latest_arm_pos.elbow.x() = msg->elbow.x;
+    _latest_arm_pos.elbow.y() = msg->elbow.y;
+    _latest_arm_pos.elbow.z() = msg->elbow.z;
+    _latest_arm_pos.wrist.x() = msg->wrist.x;
+    _latest_arm_pos.wrist.y() = msg->wrist.y;
+    _latest_arm_pos.wrist.z() = msg->wrist.z;
+    
+    
+    _arm_pos_mutex.unlock();
+}
 
 
+void ControllerComms::control_subscriber_callback(const geometry_msgs::Vector3ConstPtr& msg) {
 
+    //TODO: implement comms from unity to control (should just be an ack?)
+    
+    return;
+}
 
 } //namespace franka_panda_controller_swc
 
@@ -401,6 +433,13 @@ bool ControllerComms::check_comms_ack(void){
 
 /*converts clock ticks into seconds */
 double _clock_secs(clock_t ctim) {
+    double tim = (double) ctim;
+    double cps =  CLOCKS_PER_SEC;
+    double res = tim/cps;
+    
 
-    return (double) ((double) ctim) / ((double) CLOCKS_PER_SEC) ;
+    return res;
+
+
+    // return (double) ((double) ctim) / ((double) CLOCKS_PER_SEC) ;
 }

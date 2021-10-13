@@ -92,7 +92,7 @@ bool CartesianImpedanceControllerNR::init(hardware_interface::RobotHW* robot_hw,
   }
   
   //***********INIT STATEMACHINE**************************
-  Eigen::Vector3d initialPos = {0,0,0}; //TODO: change this to extract initial pos
+  Eigen::Vector3d initialPos = {0,0,0}; //TODO: change this to extract initial pos // should be an ArmJointPos struct
   stateMachine.init(initialPos,node_handle);
   //**********END INIT STATEMACHINE***********************
 
@@ -289,8 +289,8 @@ void CartesianImpedanceControllerNR::update(const ros::Time& /*time*/,
     std::cout << "  z: "<< force_input(2) << "\n";*/
 
     Eigen::Vector3d currentForce(uni_input_f[0],uni_input_f[1],uni_input_f[2]); //TODO: this isn't the right force variable
-    Eigen::Vector3d currentPos(uni_input_p[0],uni_input_p[1],uni_input_p[2]);
-    stateMachine.update(currentPos,currentForce);
+    Eigen::Vector3d currentWristPos(uni_input_p[0],uni_input_p[1],uni_input_p[2]);
+    stateMachine.update(currentWristPos,currentForce);
 
   }
 }

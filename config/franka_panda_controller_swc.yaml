@@ -10,6 +10,7 @@ force_controller_NR:
         - panda_joint6
         - panda_joint7
     publish_rate: 10.0
+    isometric: 0 # free motion
 
 joint_impedance_controller_swc:
     type: franka_panda_controller_swc/JointImpedanceController
@@ -55,6 +56,7 @@ cartesian_impedance_controller_NR:
         - panda_joint5
         - panda_joint6
         - panda_joint7
+    isometric: 1 # controller for isometric mode
 
 cartesian_impedance_controller:
     type: franka_panda_controller_swc/CartesianImpedanceController

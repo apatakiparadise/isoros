@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   realtime_tools
   roscpp
   rospy
+  ecl_threads
 )
 
 find_package(Eigen3 REQUIRED)
@@ -61,6 +62,7 @@ catkin_package(
     pluginlib
     realtime_tools
     roscpp
+    ecl_threads
   DEPENDS Franka
 )
 

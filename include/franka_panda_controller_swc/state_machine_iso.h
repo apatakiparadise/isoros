@@ -32,6 +32,7 @@ Date: 30.08.21
 #include <franka_panda_controller_swc/desired_mass_paramConfig.h>
 #include <geometry_msgs/Vector3.h>
 
+#include <ecl/threads/mutex.hpp>
 // #include <franka_panda_controller_swc/comms_iso.h>
 
 namespace franka_panda_controller_swc {
@@ -93,7 +94,7 @@ class ControllerComms {
         bool publish_position(Eigen::Vector3d pos_to_commshub);
         //publishes control data to both isosim and commshub
         bool publish_control(ControlInfo control_info);
-        Eigen::Vector3d get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
+        ArmJointPos get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
         bool check_comms_ack(void); //threadsafe function for getting the state of the ack
 
         //init helpers
@@ -109,14 +110,18 @@ class ControllerComms {
 
 
 
-        Eigen::Vector3d _latest_pos; //holds latest position, threadsafe
+        ArmJointPos _latest_arm_pos; //holds latest position of arm joints (not threadsafe)
+        ArmJointPos current_arm_pos; //holds latest position of arm joints (threadsafe, should only be called within main thread)
+        ecl::Mutex _arm_pos_mutex;
+
         bool _comms_ack; //tells whether system is online or not
+        clock_t _last_comms_ack_time;
 
         //subscribers (isosim and communicator)
         ros::Subscriber sub_isosim_publisher_;
         ros::Subscriber sub_control_publisher_;
-        void isosim_publisher(const geometry_msgs::Vector3ConstPtr& msg);
-        void control_publisher(const geometry_msgs::Vector3ConstPtr& msg);
+        void isosim_subscriber_callback(const franka_panda_controller_swc::ArmJointPosConstPtr& msg);
+        void control_subscriber_callback(const geometry_msgs::Vector3ConstPtr& msg);
 
         // publishers (isosim and communicator)
         franka_hw::TriggerRate isosim_rate_trigger_{1.0};
@@ -149,7 +154,7 @@ class StateMachineIsometric {
         Eigen::Vector3d robot_position_d; //actual position of franka
 
         //represented position of avatar (matches franka in free motion, based on isosim input in isometric)
-        Eigen::Vector3d avatar_position; 
+        ControllerComms::ArmJointPos avatar_position; 
         ControllerComms::ControlInfo latestControl;
 
         // IsoCommunicator Comms_Hub;
