@@ -1,6 +1,6 @@
 # Franka Controllers
 
-**Based on controllers orignially created by Shih-Wen Chen. Refer to: github.com/iyawx/franka_panda_controller_swc `**
+**Based on controllers orignially created by Shih-Wen Chen. Refer to: github.com/iyawx/franka_panda_controller_swc**
 
 **For more information of the franka software setup, please refer to `Setup` > `SETUP.md`**
 
