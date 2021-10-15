@@ -43,9 +43,12 @@ namespace franka_panda_controller_swc {
 #define ISO_STOP 2
 #define ISO_COMPLETE 3
 #define ISO_END_EXPERIMENT 4
+
 //free/iso
 #define FREE_MOTION_MODE 0
 #define ISOMETRIC_MODE 1
+
+
 
 //TODO: #def for target positions (or include an array of target positions?? could just be part of the class definition)
 #define NUM_TARGET_POS 5 //number of positions
@@ -109,7 +112,6 @@ class ControllerComms {
 
 
 
-
         ArmJointPos _latest_arm_pos; //holds latest position of arm joints (not threadsafe)
         ArmJointPos current_arm_pos; //holds latest position of arm joints (threadsafe, should only be called within main thread)
         ecl::Mutex _arm_pos_mutex;
@@ -138,13 +140,13 @@ class StateMachineIsometric {
     public:
         bool init(Eigen::Vector3d initial_pos_d, ros::NodeHandle& handle);
         // setters
-        bool set_state(void);
         bool set_robot_pos(Eigen::Vector3d new_pos_d); //called by ros controller
         // bool set_avatar_pos(Eigen::Vector3d new_pos_d); //called by either ControllerComms:subscribe_isosim_position() or by set_robot_pos() //unused, see update()
         
         // getters
         bool get_state(void);
         Eigen::Vector3d get_robot_pos(void);
+        bool get_FF(void); //whether or not we are using the force field
 
         bool update(Eigen::Vector3d pos_from_controller, Eigen::Vector3d force_from_controller); //updates pos, checks if we've reached target
 
@@ -156,12 +158,16 @@ class StateMachineIsometric {
         //represented position of avatar (matches franka in free motion, based on isosim input in isometric)
         ControllerComms::ArmJointPos avatar_position; 
         ControllerComms::ControlInfo latestControl;
+        //set latest control
+        void set_control_info(void);
+
 
         // IsoCommunicator Comms_Hub;
         ControllerComms contrComms;
 
         int protocol_state;
         bool mode; // free/iso
+        bool FFon = false; //true if force field is activated, false if not
         int target_no;
         Eigen::Vector3d target_pos;
         clock_t standby_time; //Stores the time we first enter standby mode. 
@@ -184,6 +190,7 @@ class StateMachineIsometric {
         //state/mode functions
         void set_state(int state);
         void set_mode(bool mode); //sets free motion/iso in both robot controller and comms
+        void set_FF(bool val);
 
         //task-related functions
         bool check_task_complete(void); //returns true if the position has been within TARGET_RADIUS for TARGET_TIME

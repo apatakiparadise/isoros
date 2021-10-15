@@ -141,6 +141,9 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
                 //code
                 //probably use this in case of disconnection problems or if the user provides input via cin (idk how that'd happen)
                 //maybe if ack is received we can just go back to whatever we were doing before
+                if (contrComms.check_comms_ack()) {
+                    set_state(ISO_START);
+                }
                 break;
             case ISO_COMPLETE:
                 //code
@@ -171,7 +174,8 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
                 std::cout << "ERROR: undefined state (in StateMachineIsometric::update()\n";
 
         }
-        
+        set_control_info(); //update control struct
+        contrComms.publish_control(latestControl);
 
     }
 
@@ -180,6 +184,13 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
 }
 
 //-----------------setters-----------------
+
+//sets state (run/stop etc)
+void StateMachineIsometric::set_state(int state) {
+
+    protocol_state = state;
+    return;
+}
 
 /*******
 Sets recorded robot EE position based on input from robot sensors
@@ -199,6 +210,12 @@ bool StateMachineIsometric::set_robot_pos(Eigen::Vector3d new_pos_d) {
 
 
 //-----------------getters-----------------
+
+bool StateMachineIsometric::get_FF(void) {
+
+    return FFon;
+}
+
 Eigen::Vector3d StateMachineIsometric::get_robot_pos(void) {
 
     return robot_position_d;
@@ -209,13 +226,31 @@ Eigen::Vector3d StateMachineIsometric::get_robot_pos(void) {
 
 /****************PRIVATE****************************************/
 
+void StateMachineIsometric::set_control_info(void) {
+
+    latestControl.position = avatar_position;
+    if (protocol_state == ISO_COMPLETE) {
+
+        latestControl.reached = true;
+    } else {
+        latestControl.reached = false;
+    }
+    latestControl.target_no = target_no;
+    latestControl.time = latestControl.position.time;
+}
+
 Eigen::Vector3d StateMachineIsometric::get_avatar_pos_iso(void) {
 
     //gets avatar position from comms hub
     // Comms_Hub::get_avatar_pos();
 }
 
+void StateMachineIsometric::set_FF(bool val) {
+    
+    FFon = val;
+    return;
 
+}
 
 
 bool StateMachineIsometric::check_task_complete(void) {
@@ -261,6 +296,7 @@ bool StateMachineIsometric::handle_next_task(void) {
 
     //cycles between tasks/modes
     //free (1,2,3,4,5) --> iso (1,2,3,4,5) --> mix(1,2,3,4,5)
+    //should set the force field or no (for familiarisation)
     //(mix not yet implemented)
     //if everything is done, return false
     //else return true
@@ -321,13 +357,13 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
 bool ControllerComms::publish_force(ControllerComms::ForceTime forceToIsosim) {
 
     //coordinate transform (ros to opensim):
-        // x becomes -x
-        // y becomes z
-        // z becomes y
+        // x becomes x
+        // y becomes -z
+        // z becomes -y
     if (isosim_publisher_.trylock()) {
-        isosim_publisher_.msg_.force.x = - forceToIsosim.force.x();
-        isosim_publisher_.msg_.force.y = + forceToIsosim.force.z();
-        isosim_publisher_.msg_.force.z = + forceToIsosim.force.y();
+        isosim_publisher_.msg_.force.x = forceToIsosim.force.x();
+        isosim_publisher_.msg_.force.y = - forceToIsosim.force.z();
+        isosim_publisher_.msg_.force.z = - forceToIsosim.force.y();
         isosim_publisher_.msg_.time = forceToIsosim.time;
 
         isosim_publisher_.unlockAndPublish();
@@ -346,16 +382,16 @@ bool ControllerComms::publish_position(Eigen::Vector3d pos_to_commshub) {
 bool ControllerComms::publish_control(ControllerComms::ControlInfo info) {
     
     //coordinate transform (ros to opensim): //TODO: change this to the Unity coordinate transform
-        // x becomes -x
-        // y becomes z
-        // z becomes y
+        // x becomes x
+        // y becomes -z
+        // z becomes -y
     if (control_publisher_.trylock()) {
-        control_publisher_.msg_.avatarpos.elbow.x = - info.position.elbow.x();
-        control_publisher_.msg_.avatarpos.elbow.y = + info.position.elbow.z();
-        control_publisher_.msg_.avatarpos.elbow.z = + info.position.elbow.y();
-        control_publisher_.msg_.avatarpos.wrist.x = - info.position.wrist.x();
-        control_publisher_.msg_.avatarpos.wrist.y = + info.position.wrist.z();
-        control_publisher_.msg_.avatarpos.wrist.z = + info.position.elbow.y();
+        control_publisher_.msg_.avatarpos.elbow.x = + info.position.elbow.x();
+        control_publisher_.msg_.avatarpos.elbow.y = - info.position.elbow.z();
+        control_publisher_.msg_.avatarpos.elbow.z = - info.position.elbow.y();
+        control_publisher_.msg_.avatarpos.wrist.x = + info.position.wrist.x();
+        control_publisher_.msg_.avatarpos.wrist.y = - info.position.wrist.z();
+        control_publisher_.msg_.avatarpos.wrist.z = - info.position.elbow.y();
         control_publisher_.msg_.avatarpos.time = info.position.time;
         control_publisher_.msg_.reached = info.reached;
         control_publisher_.msg_.targetno = info.target_no;
@@ -399,6 +435,7 @@ bool ControllerComms::check_comms_ack(void){
     return true;
     // return _comms_ack; //TODO: needs to be threadsafe
 }
+
 
 
 

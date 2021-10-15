@@ -228,17 +228,29 @@ void CartesianImpedanceControllerNR::update(const ros::Time& /*time*/,
     Eigen::Matrix<double, 3,1> uni_input_f;
     force_sensor = jacobian_transpose_pinv * tau_sensor;
     init_force = jacobian_transpose_pinv * tau_sensor_init;
-    force_const(0,1) = -F_K_;
-    force_const(0,2) = F_K_;
-    force_const(1,0) = F_K_;
-    force_const(1,2) = -F_K_;
-    force_const(2,0) = -F_K_;
-    force_const(2,1) = F_K_;
+
     for (size_t i = 0; i < 3; ++i) { 
-      force_input(i) = (force_sensor(i) - init_force(i)) / obj_mass_;
+        force_input(i) = (force_sensor(i) - init_force(i)) / obj_mass_;
+      }
+    
+    if (stateMachine.get_FF()) {
+      //force field is activated
+      force_const(0,1) = -F_K_;
+      force_const(0,2) = F_K_;
+      force_const(1,0) = F_K_;
+      force_const(1,2) = -F_K_;
+      force_const(2,0) = -F_K_;
+      force_const(2,1) = F_K_;
+      
+      force_acc = force_acc + force_input;
+      uni_input_f = force_const * force_acc / 500; //force field
+    } else {
+
+      uni_input_f = force_input; // no force field
     }
-    force_acc = force_acc + force_input;
-    uni_input_f = force_const * force_acc / 500; //force field
+
+
+    
 
     // std::cout << force_sensor(0) << "  "; //UNCOMMENT THIS IF NEEDED
     // std::cout << force_sensor(1) << "  ";
@@ -286,7 +298,7 @@ void CartesianImpedanceControllerNR::update(const ros::Time& /*time*/,
     /*
     std::cout << "  x: "<< force_input(0);
     std::cout << "  y: "<< force_input(1);
-    std::cout << "  z: "<< force_input(2) << "\n";*/
+    std::cout << "  z: "<< force_input(2) << "\n";//*/
 
     Eigen::Vector3d currentForce(uni_input_f[0],uni_input_f[1],uni_input_f[2]); //TODO: this isn't the right force variable
     Eigen::Vector3d currentWristPos(uni_input_p[0],uni_input_p[1],uni_input_p[2]);
