@@ -29,11 +29,20 @@ Date: 30.08.21
 #include <realtime_tools/realtime_publisher.h>
 #include <franka_panda_controller_swc/ForceOutput.h>
 #include <franka_panda_controller_swc/ControlOutput.h>
+#include <franka_panda_controller_swc/IsosimOutput.h>
+
 #include <franka_panda_controller_swc/desired_mass_paramConfig.h>
 #include <geometry_msgs/Vector3.h>
 
 #include <ecl/threads/mutex.hpp>
+
+#include <future>
+#include <thread>
 // #include <franka_panda_controller_swc/comms_iso.h>
+
+
+
+#include <rosbridge_ws_client.hpp>
 
 namespace franka_panda_controller_swc {
 
@@ -63,11 +72,9 @@ namespace franka_panda_controller_swc {
 #define CONTROL_PERIOD 0.01 //secs, 100Hz
 
 class StateMachineIsometric;
+class ControllerComms;
 
-//Handles communication within the controller thread
-class ControllerComms {
-    public:
-
+        //structs within namespace
         struct ForceTime {
             
             Eigen::Vector3d force;
@@ -88,6 +95,42 @@ class ControllerComms {
             int target_no;
             bool reached;
         };
+
+class localComms {
+
+    public:
+        bool init_local_comms(void);
+
+        bool publish_stuff();
+    
+    private:
+
+        //THREADING STUFF
+        std::promise<void> pubExitSignal;
+        std::thread* pubTh;
+        std::future<void> pubFuture;
+        ecl::Mutex pubMutex;
+        void forcePublisherThread(RosbridgeWsClient& client, const std::future<void>& futureObj);
+
+        std::promise<void> subExitSignal;
+        std::thread* subTh;
+        std::future<void> subFuture;
+        void posSubscriberThread(RosbridgeWsClient& client, const std::future<void>& futureObj);
+
+        //protected threading variables:
+        // ControllerComms::ArmJointPos _armData;
+        bool _newPosAvailable;
+        ForceTime _forceData;
+        bool _newForceAvailable;
+
+        void publishForce(ControllerComms::ForceTime data);
+};
+
+//Handles communication within the controller thread
+class ControllerComms {
+    public:
+
+        
 
         //initialises comms
         bool init(Eigen::Vector3d initial_avatar_pos, int iso_state, int iso_mode, int targ_no, ros::NodeHandle& handle);

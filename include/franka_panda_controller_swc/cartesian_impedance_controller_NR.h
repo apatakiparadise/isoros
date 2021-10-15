@@ -18,6 +18,10 @@
 #include <franka_hw/trigger_rate.h>
 #include <realtime_tools/realtime_publisher.h>
 #include <franka_panda_controller_swc/UnityInput.h>
+#include <franka_panda_controller_swc/ForceOutput.h>
+#include <franka_panda_controller_swc/ControlOutput.h>
+#include <franka_panda_controller_swc/IsosimOutput.h>
+
 #include <franka_panda_controller_swc/compliance_paramConfig.h>
 #include <franka_hw/franka_model_interface.h>
 #include <franka_hw/franka_state_interface.h>

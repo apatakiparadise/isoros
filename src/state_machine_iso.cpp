@@ -334,6 +334,10 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
      //start rosbridge
     isosim_publisher_.init(handle, "force_output",1);
     control_publisher_.init(handle, "control_output",1);
+
+    //subscribers
+    sub_isosim_publisher_ = handle.subscribe("/isosimtopic", 20, &ControllerComms::isosim_subscriber_callback,  this, ros::TransportHints().reliable().tcpNoDelay());
+
      //set params for initial message
     ControlInfo initialControl;
     initialControl.position.wrist = initial_avatar_pos;
@@ -441,7 +445,8 @@ bool ControllerComms::check_comms_ack(void){
 
 void ControllerComms::isosim_subscriber_callback(const franka_panda_controller_swc::ArmJointPosConstPtr& msg) {
     //TODO: handle transform between isosim and ros coordinates
-    
+    ROS_INFO_STREAM("Isosim Subscriber callback");
+
     _arm_pos_mutex.lock(); //will throw error if mutex is not lockable
 
     _latest_arm_pos.time = msg->time;
@@ -464,8 +469,128 @@ void ControllerComms::control_subscriber_callback(const geometry_msgs::Vector3Co
     return;
 }
 
-} //namespace franka_panda_controller_swc
+//global within namespace
+RosbridgeWsClient RBclient("localhost:9090");
 
+
+void advertiserCallback(std::shared_ptr<WsClient::Connection> /*connection*/, std::shared_ptr<WsClient::InMessage> in_message) {
+
+}
+
+bool localComms::init_local_comms(void)  {
+
+    RBclient.addClient("service_advertiser");
+    RBclient.advertiseService("service_advertiser", "/controllerservice", "std_srvs/SetBool", &advertiserCallback);
+
+    RBclient.addClient("topic_advertiser");
+    RBclient.advertise("topic_advertiser", "/ROSforceOutput", "franka_panda_controller_swc/ForceOutput");
+
+    subFuture = subExitSignal.get_future();
+    subTh = new std::thread(&localComms::forcePublisherThread, std::ref(RBclient), std::cref(subFuture));
+
+    pubFuture = pubExitSignal.get_future();
+    pubTh = new std::thread(&localComms::posSubscriberThread, std::ref(RBclient),std::cref(subFuture));
+}
+
+void localComms::forcePublisherThread(RosbridgeWsClient& client, const std::future<void>& futureObj) {
+
+    ROS_INFO_STREAM("FORCE PUBLISHER THREAD BEGIN");
+
+    client.addClient("force_publisher");
+
+    ControllerComms::ForceTime forceToSend;
+    bool newData = false;
+    while(futureObj.wait_for(std::chrono::microseconds(200)) == std::future_status::timeout) {
+
+        if (pubMutex.trylock()) {
+            if (_newForceAvailable) {
+                forceToSend = _forceData;
+                newData = true;
+                _newForceAvailable = false; //we've accessed the most recent data
+            }
+            pubMutex.unlock();
+        }
+        if (newData) {
+            publishForce(forceToSend);
+            newData = false;
+        }
+        //continue running until signal received
+    }
+    client.removeClient("force_publisher");
+    ROS_INFO_STREAM("FORCE PUBLISHER OUT");
+}
+
+void localComms::publishForce(ForceTime data) {
+
+    rapidjson::Document d;
+
+    d.SetObject();
+
+    rapidjson::Value msg(rapidjson::kObjectType);
+
+    rapidjson::Value fVec(rapidjson::kObjectType);
+    rapidjson::Value fx;
+    rapidjson::Value fy;
+    rapidjson::Value fz;
+    fx.SetDouble(data.force.x());
+    fy.SetDouble(data.force.y());
+    fz.SetDouble(data.force.z());
+
+    rapidjson::Value timestamp;
+    timestamp.SetDouble(data.time);
+
+    d.AddMember("force",fVec,d.GetAllocator());
+    d.AddMember("time",timestamp,d.GetAllocator());
+
+    RBclient.publish("/ROSforceOutput",d);
+
+    return;
+
+}
+
+ecl::Mutex subMutex;
+ControllerComms::ArmJointPos _armData;
+void posSubscriberCallback(std::shared_ptr<WsClient::Connection> /*connection*/, std::shared_ptr<WsClient::InMessage> in_message) {
+
+    rapidjson::Document d;
+
+    if (d.Parse(in_message->string().c_str()).HasParseError() ) {
+        std::cerr << "\n\nparse error\n" << std::endl;
+    };
+
+    assert(d.IsObject());    // Document is a JSON value represents the root of DOM. Root can be either an object or array.
+    assert(d.HasMember("msg"));
+    assert(d["msg"].HasMember("wristPos"));
+    assert(d["msg"].HasMember("elbowPos"));
+    assert(d["msg"].HasMember("time"));
+
+    double wx = d["msg"]["wristPos"]["x"].GetDouble();
+    double wy = d["msg"]["wristPos"]["y"].GetDouble();
+    double wz = d["msg"]["wristPos"]["z"].GetDouble();
+
+    double ex = d["msg"]["elbowPos"]["x"].GetDouble();
+    double ey = d["msg"]["elbowPos"]["y"].GetDouble();
+    double ez = d["msg"]["elbowPos"]["z"].GetDouble();
+
+    double timestamp = d["msg"]["time"].GetDouble();
+
+    subMutex.lock(); //lock mutex
+        
+
+}
+
+
+void localComms::posSubscriberThread(RosbridgeWsClient& client, const std::future<void>& futureObj) {
+
+    RBclient.addClient("topic_subscriber");
+    RBclient.subscribe("topic_subscriber","/isosimtopic",&posSubscriberCallback);
+}
+
+
+
+
+
+} //namespace franka_panda_controller_swc
 
 //PRIVATE HELPER FUNCTIONS
 
