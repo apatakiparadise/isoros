@@ -140,7 +140,7 @@ void CartesianImpedanceControllerNR::starting(const ros::Time& /*time*/) {
   q_d_nullspace_ = q_initial;
 
 
-  Eigen::Map<Eigen::Matrix<double, 7,1>> tau_sensor_init(initial_state.tau_J.data());
+  Eigen::Map<Eigen::Matrix<double, 7,1>> tau_sensor_init(initial_state.tau_ext_hat_filtered.data());
 
   force_acc.setZero();
 }
@@ -234,11 +234,11 @@ void CartesianImpedanceControllerNR::update(const ros::Time& /*time*/,
     force_const(1,2) = -F_K_;
     force_const(2,0) = -F_K_;
     force_const(2,1) = F_K_;
-    for (size_t i = 0; i < 3; ++i) {
+    for (size_t i = 0; i < 3; ++i) { 
       force_input(i) = (force_sensor(i) - init_force(i)) / obj_mass_;
     }
     force_acc = force_acc + force_input;
-    uni_input_f = force_const * force_acc / 500;
+    uni_input_f = force_const * force_acc / 500; //force field
 
     // std::cout << force_sensor(0) << "  "; //UNCOMMENT THIS IF NEEDED
     // std::cout << force_sensor(1) << "  ";

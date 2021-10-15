@@ -69,6 +69,7 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
 
     //so.... 
     //update our recorded robot EE position
+
     set_robot_pos(pos_from_controller); //TODO: should this be in an if/else loop with the below?
     //TODO: do we need a set_robot_force() function? Maybe not...
 
