@@ -90,11 +90,7 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
     if (eventTimer(CONTROL_PERIOD,&stateLoopTime) ) { //TODO: implement actual trigger
         //we are doing our regular update
         
-        // if (mode == FREE_MOTION_MODE) {
-
-        //     contrComms.publish_position(target_pos); //DELETE (pos will be published with control output)
-        // }
-        
+ 
         //run state machine logic
     
         switch (protocol_state) {
@@ -350,7 +346,7 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
     //publish first message (control)
     publish_control(initialControl);
 
-
+    std::this_thread::sleep_for(std::chrono::seconds(5));
     locals.init_local_comms();
 
      //receive answer, hopefully
@@ -368,6 +364,21 @@ bool ControllerComms::publish_force(ForceTime forceToIsosim) {
         // y becomes -z
         // z becomes -y
 
+    ForceTime output;
+    // output.force.x() = forceToIsosim.force.x();
+    // output.force.y() = - forceToIsosim.force.z();
+    // output.force.z() = - forceToIsosim.force.y();
+
+    output.force = {forceToIsosim.force.x(),  - forceToIsosim.force.z(),  - forceToIsosim.force.y()};
+
+    output.time = forceToIsosim.time;
+    if (locals.setForceData(output) == true) {
+        return true;
+    } else {
+        return false;
+    };
+
+    //NOT REACHED (redundant code from previous example)
     if (isosim_publisher_.trylock()) {
         isosim_publisher_.msg_.force.x = forceToIsosim.force.x();
         isosim_publisher_.msg_.force.y = - forceToIsosim.force.z();
@@ -382,9 +393,6 @@ bool ControllerComms::publish_force(ForceTime forceToIsosim) {
     }
 }
 
-bool ControllerComms::publish_position(Eigen::Vector3d pos_to_commshub) {
-    return false ; //TODO: DEPRECATE THIS FUNCTION
-}
 
 //publishes control information
 bool ControllerComms::publish_control(ControlInfo info) {
@@ -446,10 +454,9 @@ bool ControllerComms::check_comms_ack(void){
 
 
 
-
+/* called as part of subscriber thread*/
 void ControllerComms::isosim_subscriber_callback(const franka_panda_controller_swc::ArmJointPosConstPtr& msg) {
     //TODO: handle transform between isosim and ros coordinates
-    ROS_INFO_STREAM("Isosim Subscriber callback");
 
     _arm_pos_mutex.lock(); //will throw error if mutex is not lockable
 
@@ -496,6 +503,19 @@ bool localComms::init_local_comms(void)  {
     pubTh = new std::thread(&localComms::posSubscriberThread, this, std::ref(RBclient),std::cref(subFuture));
 }
 
+bool localComms::setForceData(ForceTime input) {
+    if (pubMutex.trylock()) {
+        _forceData = input;
+        _newForceAvailable = true; //note: we don't check this flag here, so any un-used data will be overwritten
+        pubMutex.unlock();
+        return true;
+    } else {
+        return false;
+    }
+
+}
+
+/////PRIVATE FUNCTIONS and threading
 void localComms::forcePublisherThread(RosbridgeWsClient& client, const std::future<void>& futureObj) {
 
     ROS_INFO_STREAM("FORCE PUBLISHER THREAD BEGIN");
@@ -528,7 +548,11 @@ void localComms::forcePublisherThread(RosbridgeWsClient& client, const std::futu
     ROS_INFO_STREAM("FORCE PUBLISHER OUT");
 }
 
+/* Function to publish force to a topic. Should be run within the publishing thread */
 void localComms::publishForce(ForceTime data) {
+
+    std::cout << "force out " << data.force << " time " << data.time << std::endl;
+ 
 
     rapidjson::Document d;
 
@@ -543,6 +567,11 @@ void localComms::publishForce(ForceTime data) {
     fx.SetDouble(data.force.x());
     fy.SetDouble(data.force.y());
     fz.SetDouble(data.force.z());
+    
+    fVec.AddMember("x", fx, d.GetAllocator());
+    fVec.AddMember("y", fy, d.GetAllocator());
+    fVec.AddMember("z", fz, d.GetAllocator());
+
 
     rapidjson::Value timestamp;
     timestamp.SetDouble(data.time);

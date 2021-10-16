@@ -102,6 +102,8 @@ class localComms {
         bool init_local_comms(void);
 
         bool publish_stuff();
+
+        bool setForceData(ForceTime input);
     
     private:
 
@@ -119,9 +121,9 @@ class localComms {
 
         //protected threading variables:
         // ControllerComms::ArmJointPos _armData;
-        bool _newPosAvailable;
-        ForceTime _forceData;
-        bool _newForceAvailable;
+        bool _newPosAvailable = false;
+        ForceTime _forceData; //holds the latest force data to be sent (x,y,z in Isosim's coordinates)
+        bool _newForceAvailable = false; // indicates whether the values in _forceData have been published or not (true if new, false if previously pubbed)
         //protected function to publish data via rosbridgecpp
         void publishForce(ForceTime data);
 };
@@ -136,9 +138,8 @@ class ControllerComms {
         bool init(Eigen::Vector3d initial_avatar_pos, int iso_state, int iso_mode, int targ_no, ros::NodeHandle& handle);
         //publishes force to isosim
         bool publish_force(ForceTime forceToIsosim);
-        //publishes franka position to commshub //REDUNDANT AS THIS IS PUBLISHED WITH CONTROL // TODO: check the timings to see if this is okay
-        bool publish_position(Eigen::Vector3d pos_to_commshub);
-        //publishes control data to both isosim and commshub
+
+        //publishes control/position data to both isosim and commshub
         bool publish_control(ControlInfo control_info);
         ArmJointPosStruct get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
         bool check_comms_ack(void); //threadsafe function for getting the state of the ack
