@@ -551,7 +551,7 @@ void localComms::forcePublisherThread(RosbridgeWsClient& client, const std::futu
 /* Function to publish force to a topic. Should be run within the publishing thread */
 void localComms::publishForce(ForceTime data) {
 
-    std::cout << "force out " << data.force << " time " << data.time << std::endl;
+    // std::cout << "force out " << data.force << " time " << data.time << std::endl;
  
 
     rapidjson::Document d;
