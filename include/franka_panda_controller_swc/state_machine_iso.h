@@ -81,7 +81,7 @@ class ControllerComms;
             double time;
         };
 
-        struct ArmJointPos {
+        struct ArmJointPosStruct {
 
             Eigen::Vector3d elbow;
             Eigen::Vector3d wrist;
@@ -90,7 +90,7 @@ class ControllerComms;
 
         struct ControlInfo {
 
-            ArmJointPos position;
+            ArmJointPosStruct position;
             double time;
             int target_no;
             bool reached;
@@ -122,8 +122,8 @@ class localComms {
         bool _newPosAvailable;
         ForceTime _forceData;
         bool _newForceAvailable;
-
-        void publishForce(ControllerComms::ForceTime data);
+        //protected function to publish data via rosbridgecpp
+        void publishForce(ForceTime data);
 };
 
 //Handles communication within the controller thread
@@ -140,7 +140,7 @@ class ControllerComms {
         bool publish_position(Eigen::Vector3d pos_to_commshub);
         //publishes control data to both isosim and commshub
         bool publish_control(ControlInfo control_info);
-        ArmJointPos get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
+        ArmJointPosStruct get_latest_isosim_position(void); //threadsafe function for getting latest isosim position
         bool check_comms_ack(void); //threadsafe function for getting the state of the ack
 
         //init helpers
@@ -155,8 +155,8 @@ class ControllerComms {
 
 
 
-        ArmJointPos _latest_arm_pos; //holds latest position of arm joints (not threadsafe)
-        ArmJointPos current_arm_pos; //holds latest position of arm joints (threadsafe, should only be called within main thread)
+        ArmJointPosStruct _latest_arm_pos; //holds latest position of arm joints (not threadsafe)
+        ArmJointPosStruct current_arm_pos; //holds latest position of arm joints (threadsafe, should only be called within main thread)
         ecl::Mutex _arm_pos_mutex;
 
         bool _comms_ack; //tells whether system is online or not
@@ -174,7 +174,7 @@ class ControllerComms {
         realtime_tools::RealtimePublisher<ForceOutput> isosim_publisher_; //TODO figure out how to add this to /opt/ros/melodic/...
         realtime_tools::RealtimePublisher<ControlOutput> control_publisher_;
 
-
+        localComms locals;
 };
 
 
@@ -199,8 +199,8 @@ class StateMachineIsometric {
         Eigen::Vector3d robot_position_d; //actual position of franka
 
         //represented position of avatar (matches franka in free motion, based on isosim input in isometric)
-        ControllerComms::ArmJointPos avatar_position; 
-        ControllerComms::ControlInfo latestControl;
+        ArmJointPosStruct avatar_position; 
+        ControlInfo latestControl;
         //set latest control
         void set_control_info(void);
 

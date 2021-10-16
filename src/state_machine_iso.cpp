@@ -81,7 +81,7 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
         //update the avatar position based on the latest data
         avatar_position = contrComms.get_latest_isosim_position();
         //we are sending force to isosim
-        ControllerComms::ForceTime forceTime_;
+        ForceTime forceTime_;
         forceTime_.force = force_from_controller;
         forceTime_.time = simTime;
         contrComms.publish_force(forceTime_);
@@ -350,6 +350,9 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
     //publish first message (control)
     publish_control(initialControl);
 
+
+    locals.init_local_comms();
+
      //receive answer, hopefully
     //  subscribe_comms_ack();
 
@@ -358,12 +361,13 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
 
  }
 
-bool ControllerComms::publish_force(ControllerComms::ForceTime forceToIsosim) {
+bool ControllerComms::publish_force(ForceTime forceToIsosim) {
 
     //coordinate transform (ros to opensim):
         // x becomes x
         // y becomes -z
         // z becomes -y
+
     if (isosim_publisher_.trylock()) {
         isosim_publisher_.msg_.force.x = forceToIsosim.force.x();
         isosim_publisher_.msg_.force.y = - forceToIsosim.force.z();
@@ -383,7 +387,7 @@ bool ControllerComms::publish_position(Eigen::Vector3d pos_to_commshub) {
 }
 
 //publishes control information
-bool ControllerComms::publish_control(ControllerComms::ControlInfo info) {
+bool ControllerComms::publish_control(ControlInfo info) {
     
     //coordinate transform (ros to opensim): //TODO: change this to the Unity coordinate transform
         // x becomes x
@@ -412,7 +416,7 @@ bool ControllerComms::publish_control(ControllerComms::ControlInfo info) {
 /* Threadsafe function for getting the latest arm position received from isosim
     Tries to unlock mutex for arm variable. If unsuccessful, will just return previous value
 */
-ControllerComms::ArmJointPos ControllerComms::get_latest_isosim_position(void) {
+ArmJointPosStruct ControllerComms::get_latest_isosim_position(void) {
 
     if (_arm_pos_mutex.trylock()) {
         current_arm_pos = _latest_arm_pos;
@@ -482,23 +486,27 @@ bool localComms::init_local_comms(void)  {
     RBclient.addClient("service_advertiser");
     RBclient.advertiseService("service_advertiser", "/controllerservice", "std_srvs/SetBool", &advertiserCallback);
 
-    RBclient.addClient("topic_advertiser");
-    RBclient.advertise("topic_advertiser", "/ROSforceOutput", "franka_panda_controller_swc/ForceOutput");
+    // RBclient.addClient("topic_advertiser");
+    // RBclient.advertise("topic_advertiser", "/ROSforceOutput", "franka_panda_controller_swc/ForceOutput");
 
     subFuture = subExitSignal.get_future();
-    subTh = new std::thread(&localComms::forcePublisherThread, std::ref(RBclient), std::cref(subFuture));
+    subTh = new std::thread(&localComms::forcePublisherThread, this, std::ref(RBclient), std::cref(subFuture));
 
     pubFuture = pubExitSignal.get_future();
-    pubTh = new std::thread(&localComms::posSubscriberThread, std::ref(RBclient),std::cref(subFuture));
+    pubTh = new std::thread(&localComms::posSubscriberThread, this, std::ref(RBclient),std::cref(subFuture));
 }
 
 void localComms::forcePublisherThread(RosbridgeWsClient& client, const std::future<void>& futureObj) {
 
     ROS_INFO_STREAM("FORCE PUBLISHER THREAD BEGIN");
 
+    client.addClient("topic_advertiser");
+    client.advertise("topic_advertiser", "/ROSforceOutput", "franka_panda_controller_swc/ForceOutput");
+
+
     client.addClient("force_publisher");
 
-    ControllerComms::ForceTime forceToSend;
+    ForceTime forceToSend;
     bool newData = false;
     while(futureObj.wait_for(std::chrono::microseconds(200)) == std::future_status::timeout) {
 
@@ -549,7 +557,7 @@ void localComms::publishForce(ForceTime data) {
 }
 
 ecl::Mutex subMutex;
-ControllerComms::ArmJointPos _armData;
+ArmJointPosStruct _armData;
 void posSubscriberCallback(std::shared_ptr<WsClient::Connection> /*connection*/, std::shared_ptr<WsClient::InMessage> in_message) {
 
     rapidjson::Document d;

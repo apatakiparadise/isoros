@@ -26,6 +26,19 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Eigen3 REQUIRED)
 find_package(Franka 0.7.0 REQUIRED)
 
+if(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/rosbridgecpp)
+    set(ROSBRIDGECPP_SRC_DIR "${CMAKE_CURRENT_SOURCE_DIR}/rosbridgecpp")
+else()
+    if(EXISTS /home/uqmvale6/rosbridgecpp)
+        set(ROSBRIDGECPP_SRC_DIR "/home/uqmvale6/rosbridgecpp")
+    else()
+        set(ROSBRIDGECPP_SRC_DIR "ROSBRIDGECPP_NOT_FOUND")
+    endif()
+endif()
+
+include_directories(${ROSBRIDGECPP_SRC_DIR})
+add_subdirectory(${ROSBRIDGECPP_SRC_DIR} rosbridgecpp)
+
 add_message_files(FILES
   JointTorqueComparison.msg
   UnityInput.msg
@@ -88,7 +101,9 @@ add_dependencies(franka_panda_controller_swc
 target_link_libraries(franka_panda_controller_swc PUBLIC
   ${Franka_LIBRARIES}
   ${catkin_LIBRARIES}
+  rosbridgecpp
 )
+#target_link_libraries(franka_panda_controller_swc rosbridgecpp)
 
 target_include_directories(franka_panda_controller_swc SYSTEM PUBLIC
   ${Franka_INCLUDE_DIRS}
