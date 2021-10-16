@@ -224,7 +224,8 @@ Eigen::Vector3d StateMachineIsometric::get_robot_pos(void) {
 
 void StateMachineIsometric::set_control_info(void) {
 
-    latestControl.position = avatar_position;
+    latestControl.position = avatar_position; //should be up to date with the latest position already 
+                                            // (either set by get_latest_isosim_position() in iso or by set_robot_pos() in free motion)
     if (protocol_state == ISO_COMPLETE) {
 
         latestControl.reached = true;
@@ -426,6 +427,12 @@ bool ControllerComms::publish_control(ControlInfo info) {
 */
 ArmJointPosStruct ControllerComms::get_latest_isosim_position(void) {
 
+    current_arm_pos = locals.getArmPosFromIsosim();
+
+    return current_arm_pos;
+
+
+    ///NOT REACHED used by subscriber over network (currently inactive)
     if (_arm_pos_mutex.trylock()) {
         current_arm_pos = _latest_arm_pos;
         _arm_pos_mutex.unlock();
@@ -515,6 +522,18 @@ bool localComms::setForceData(ForceTime input) {
 
 }
 
+/*threadsafe method to obtain the arm position saved in _armData as received from /isosimtopic*/
+ArmJointPosStruct localComms::getArmPosFromIsosim(void) {
+
+    if (subMutex.trylock()) {
+        latestArmData = _armData;
+        subMutex.unlock();
+    }
+    //threadsafe
+    return latestArmData; //if the mutex is locked, we'll just return the previous value
+
+}
+
 /////PRIVATE FUNCTIONS and threading
 void localComms::forcePublisherThread(RosbridgeWsClient& client, const std::future<void>& futureObj) {
 
@@ -586,33 +605,40 @@ void localComms::publishForce(ForceTime data) {
 }
 
 ecl::Mutex subMutex;
-ArmJointPosStruct _armData;
-void posSubscriberCallback(std::shared_ptr<WsClient::Connection> /*connection*/, std::shared_ptr<WsClient::InMessage> in_message) {
+
+void localComms::posSubscriberCallback(std::shared_ptr<WsClient::Connection> /*connection*/, std::shared_ptr<WsClient::InMessage> in_message) {
 
     rapidjson::Document d;
 
+  
     if (d.Parse(in_message->string().c_str()).HasParseError() ) {
         std::cerr << "\n\nparse error\n" << std::endl;
     };
 
     assert(d.IsObject());    // Document is a JSON value represents the root of DOM. Root can be either an object or array.
     assert(d.HasMember("msg"));
-    assert(d["msg"].HasMember("wristPos"));
-    assert(d["msg"].HasMember("elbowPos"));
+    assert(d["msg"].HasMember("wrist"));
+    assert(d["msg"].HasMember("elbow"));
+    assert(d["msg"]["wrist"].HasMember("x"));
     assert(d["msg"].HasMember("time"));
 
-    double wx = d["msg"]["wristPos"]["x"].GetDouble();
-    double wy = d["msg"]["wristPos"]["y"].GetDouble();
-    double wz = d["msg"]["wristPos"]["z"].GetDouble();
+    double wx = d["msg"]["wrist"]["x"].GetDouble();
+    double wy = d["msg"]["wrist"]["y"].GetDouble();
+    double wz = d["msg"]["wrist"]["z"].GetDouble();
 
-    double ex = d["msg"]["elbowPos"]["x"].GetDouble();
-    double ey = d["msg"]["elbowPos"]["y"].GetDouble();
-    double ez = d["msg"]["elbowPos"]["z"].GetDouble();
+    double ex = d["msg"]["elbow"]["x"].GetDouble();
+    double ey = d["msg"]["elbow"]["y"].GetDouble();
+    double ez = d["msg"]["elbow"]["z"].GetDouble();
 
     double timestamp = d["msg"]["time"].GetDouble();
-
+    std::cout << "wx is " << wx << std::endl;
     subMutex.lock(); //lock mutex
-        
+        _armData.wrist = {wx,wy,wz};
+        _armData.elbow = {ex,ey,ez};
+        _armData.time = timestamp;
+        _newPosAvailable = true;
+        std::cout << "arm pos received: " << _armData.wrist << std::endl;
+    subMutex.unlock();
 
 }
 
@@ -620,7 +646,15 @@ void posSubscriberCallback(std::shared_ptr<WsClient::Connection> /*connection*/,
 void localComms::posSubscriberThread(RosbridgeWsClient& client, const std::future<void>& futureObj) {
 
     RBclient.addClient("topic_subscriber");
-    RBclient.subscribe("topic_subscriber","/isosimtopic",&posSubscriberCallback);
+
+    std::function<void(std::shared_ptr<WsClient::Connection> connection, std::shared_ptr<WsClient::InMessage> in_message)> _posCallbackFunc;
+    _posCallbackFunc = [this](std::shared_ptr<WsClient::Connection> connection, std::shared_ptr<WsClient::InMessage> in_message){this->posSubscriberCallback(connection, in_message);};
+    RBclient.subscribe("topic_subscriber","/isosimtopic",_posCallbackFunc);
+
+    while(futureObj.wait_for(std::chrono::seconds(2)) == std::future_status::timeout) {
+        //do nothing (everything is handled by the callbacks
+    }
+
 }
 
 

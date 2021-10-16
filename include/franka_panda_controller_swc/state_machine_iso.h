@@ -101,10 +101,10 @@ class localComms {
     public:
         bool init_local_comms(void);
 
-        bool publish_stuff();
-
         bool setForceData(ForceTime input);
-    
+
+        ArmJointPosStruct getArmPosFromIsosim(void);
+
     private:
 
         //THREADING STUFF
@@ -117,15 +117,19 @@ class localComms {
         std::promise<void> subExitSignal;
         std::thread* subTh;
         std::future<void> subFuture;
+        ecl::Mutex subMutex;
+        void posSubscriberCallback(std::shared_ptr<WsClient::Connection> /*connection*/, std::shared_ptr<WsClient::InMessage> in_message);
         void posSubscriberThread(RosbridgeWsClient& client, const std::future<void>& futureObj);
 
         //protected threading variables:
-        // ControllerComms::ArmJointPos _armData;
+        ArmJointPosStruct _armData;
         bool _newPosAvailable = false;
         ForceTime _forceData; //holds the latest force data to be sent (x,y,z in Isosim's coordinates)
         bool _newForceAvailable = false; // indicates whether the values in _forceData have been published or not (true if new, false if previously pubbed)
         //protected function to publish data via rosbridgecpp
         void publishForce(ForceTime data);
+
+        ArmJointPosStruct latestArmData; //threadsafe variable holding latest positions
 };
 
 //Handles communication within the controller thread
