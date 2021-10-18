@@ -339,7 +339,7 @@ bool StateMachineIsometric::eventTimer(double period, clock_t* prevTime) {
 
     //subscribers
     sub_isosim_publisher_ = handle.subscribe("/isosimtopic", 20, &ControllerComms::isosim_subscriber_callback,  this, ros::TransportHints().reliable().tcpNoDelay());
-
+    sub_unity_subscriber_ = handle.subscribe("/unity_output",20,&ControllerComms::control_subscriber_callback, this, ros::TransportHints().reliable().tcpNoDelay());
      //set params for initial message
     ControlInfo initialControl;
     initialControl.position.wrist = initial_avatar_pos;
@@ -461,6 +461,13 @@ void ControllerComms::set_comms_publish_rate(double rate) {
 bool ControllerComms::check_comms_ack(void){
 
     return true;
+    bool ack_ = false;
+    if (_ack_mutex.trylock()) {
+        ack_ = _comms_ack;
+        _ack_mutex.unlock();
+    }
+    return ack_;
+
     // return _comms_ack; //TODO: needs to be threadsafe
 }
 
@@ -488,7 +495,11 @@ void ControllerComms::isosim_subscriber_callback(const franka_panda_controller_s
 void ControllerComms::control_subscriber_callback(const geometry_msgs::Vector3ConstPtr& msg) {
 
     //TODO: implement comms from unity to control (should just be an ack?)
-    
+    Eigen::Vector3d vecIn = {msg->x,msg->y,msg->z};
+    {
+        _ack_mutex.lock();
+        _comms_ack = (bool) vecIn.maxCoeff();
+    }
     return;
 }
 

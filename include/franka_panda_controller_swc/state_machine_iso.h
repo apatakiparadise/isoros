@@ -164,12 +164,13 @@ class ControllerComms {
         ArmJointPosStruct current_arm_pos; //holds latest position of arm joints (threadsafe, should only be called within main thread)
         ecl::Mutex _arm_pos_mutex;
 
+        ecl::Mutex _ack_mutex;
         bool _comms_ack; //tells whether system is online or not
         clock_t _last_comms_ack_time;
 
         //subscribers (isosim and communicator)
         ros::Subscriber sub_isosim_publisher_;
-        ros::Subscriber sub_control_publisher_;
+        ros::Subscriber sub_unity_subscriber_;
         void isosim_subscriber_callback(const franka_panda_controller_swc::ArmJointPosConstPtr& msg);
         void control_subscriber_callback(const geometry_msgs::Vector3ConstPtr& msg);
 
