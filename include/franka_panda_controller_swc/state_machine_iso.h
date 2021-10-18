@@ -220,7 +220,7 @@ class StateMachineIsometric {
         Eigen::Vector3d target_pos;
         clock_t standby_time; //Stores the time we first enter standby mode. 
                 //Used to count how long we've been in ISO_STANDBY state. Set to 0 at init as well as whenever we leave ISO_STANDBY
-        clock_t startTime; //The time we start the simulation
+        // clock_t startTime; //The time we start the simulation
         clock_t timeAtTarget; //time that the avatar has been consistently at the right target spot
         bool targetReached; //represents whether or not the task has been accomplished
 
@@ -249,6 +249,9 @@ class StateMachineIsometric {
         bool eventTimer(double period, clock_t* prevTime);
 
         clock_t stateLoopTime;
+
+        std::chrono::_V2::steady_clock::time_point stateLoopTime2;
+        std::chrono::_V2::steady_clock::time_point startTime;
 };
         
 /*

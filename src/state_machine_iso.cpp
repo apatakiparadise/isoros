@@ -44,6 +44,7 @@ bool StateMachineIsometric::init(Eigen::Vector3d initial_pos_d, ros::NodeHandle&
 
     //init timers
     stateLoopTime = std::clock();
+    startTime = std::chrono::steady_clock::now();
 
     mode = ISOMETRIC_MODE;
     if (!handle.getParam("isometric",mode)) {
@@ -73,8 +74,11 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
     set_robot_pos(pos_from_controller); //TODO: should this be in an if/else loop with the below?
     //TODO: do we need a set_robot_force() function? Maybe not...
 
-    double simTime = _clock_secs(std::clock() - startTime); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
-
+    auto chronoTime =  std::chrono::steady_clock::now();
+    std::chrono::duration<double> simTimeChrono = std::chrono::duration_cast<std::chrono::duration<double>>(chronoTime - startTime);
+    double simTime = simTimeChrono.count();
+    // double simTime = _clock_secs(std::clock() - startTime); //TODO: fix time_t variable - if it's recording in seconds, that's a problem since we want to be looking at parts of a second...
+    
 
     if (mode==ISOMETRIC_MODE) {
 
@@ -171,6 +175,7 @@ bool StateMachineIsometric::update(Eigen::Vector3d pos_from_controller, Eigen::V
 
         }
         set_control_info(); //update control struct
+        // latestControl.position.wrist = {1,2,3};
         contrComms.publish_control(latestControl);
 
     }
@@ -408,7 +413,7 @@ bool ControllerComms::publish_control(ControlInfo info) {
         control_publisher_.msg_.avatarpos.elbow.z = - info.position.elbow.y();
         control_publisher_.msg_.avatarpos.wrist.x = + info.position.wrist.x();
         control_publisher_.msg_.avatarpos.wrist.y = - info.position.wrist.z();
-        control_publisher_.msg_.avatarpos.wrist.z = - info.position.elbow.y();
+        control_publisher_.msg_.avatarpos.wrist.z = - info.position.wrist.y();
         control_publisher_.msg_.avatarpos.time = info.position.time;
         control_publisher_.msg_.reached = info.reached;
         control_publisher_.msg_.targetno = info.target_no;
@@ -547,7 +552,7 @@ void localComms::forcePublisherThread(RosbridgeWsClient& client, const std::futu
 
     ForceTime forceToSend;
     bool newData = false;
-    while(futureObj.wait_for(std::chrono::microseconds(200)) == std::future_status::timeout) {
+    while(futureObj.wait_for(std::chrono::milliseconds(2)) == std::future_status::timeout) {
 
         if (pubMutex.trylock()) {
             if (_newForceAvailable) {
