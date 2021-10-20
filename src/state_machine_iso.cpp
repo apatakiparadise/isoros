@@ -404,16 +404,16 @@ bool ControllerComms::publish_force(ForceTime forceToIsosim) {
 bool ControllerComms::publish_control(ControlInfo info) {
     
     //coordinate transform (ros to opensim): //TODO: change this to the Unity coordinate transform
-        // x becomes x
-        // y becomes -z
-        // z becomes -y
+        // x becomes x        x in unity is up (so y in isosim frame of reference)
+        // y becomes -z       y in unity is forward
+        // z becomes -y       z in unity is left (so -z is right)
     if (control_publisher_.trylock()) {
         control_publisher_.msg_.avatarpos.elbow.x = + info.position.elbow.x();
         control_publisher_.msg_.avatarpos.elbow.y = - info.position.elbow.z();
         control_publisher_.msg_.avatarpos.elbow.z = - info.position.elbow.y();
-        control_publisher_.msg_.avatarpos.wrist.x = + info.position.wrist.x();
-        control_publisher_.msg_.avatarpos.wrist.y = - info.position.wrist.z();
-        control_publisher_.msg_.avatarpos.wrist.z = - info.position.wrist.y();
+        control_publisher_.msg_.avatarpos.wrist.x = info.position.wrist.y();   //+ info.position.wrist.x(); 
+        control_publisher_.msg_.avatarpos.wrist.y = info.position.wrist.x();//- info.position.wrist.z();
+        control_publisher_.msg_.avatarpos.wrist.z = -info.position.wrist.z();//- info.position.wrist.y();
         control_publisher_.msg_.avatarpos.time = info.position.time;
         control_publisher_.msg_.reached = info.reached;
         control_publisher_.msg_.targetno = info.target_no;
