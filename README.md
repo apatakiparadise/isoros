@@ -32,15 +32,8 @@ source ~/ws_moveit/devel/setup.bash
 source ~/catkin_ws_josh/devel/setup.bash
 ```
 
-## joint impedance controller
-```
-roslaunch franka_panda_controller_swc joint_impedance_controller.launch robot_ip:=172.16.0.2 load_gripper:=true
-```
+
 ## cartesian impedance controller
 ```
-roslaunch franka_panda_controller_swc cartesian_impedance_controller.launch robot_ip:=172.16.0.2 load_gripper:=true
-```
-## dual cartisan impedance controller 
-```
-roslaunch franka_panda_controller_swc dual_arm_cartesian_impedance_controller.launch
+roslaunch franka_panda_controller_swc cartesian_impedance_controller_NR.launch robot_ip:=172.16.0.2 load_gripper:=true
 ```
