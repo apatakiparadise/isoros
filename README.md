@@ -2,15 +2,9 @@
 
 **Based on controllers orignially created by Shih-Wen Chen. Refer to: github.com/iyawx/franka_panda_controller_swc**
 
-**For more information of the franka software setup, please refer to `Setup` > `SETUP.md`**
 
-**For more information of the prerequisites of controller setup, please refer to `Setup` > `CONTROLLER.md`**
 
-**For more information of the robot parameter reading, please refer to `Setup` > `TRANSMAT.md`**
-
-**For more information of the two panda setup, please refer to `Setup` > `DUALCONTROLLER.md`**
-
-## To compile the file after modified the code:
+## To compile the file after code has been modified:
 ```
 cd catkin_ws_josh 
 source /opt/ros/melodic/setup.sh 
