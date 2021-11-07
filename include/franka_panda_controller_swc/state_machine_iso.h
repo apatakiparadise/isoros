@@ -61,7 +61,7 @@ namespace franka_panda_controller_swc {
 
 //TODO: #def for target positions (or include an array of target positions?? could just be part of the class definition)
 #define NUM_TARGET_POS 5 //number of positions
-#define TARGET_RADIUS 5 // max distance from target to be considered achieved //TODO: what's the units here??
+#define TARGET_RADIUS 0.05 // max distance in metres from target to be considered achieved
 #define TARGET_TIME 5 //time in seconds that the avatar must be in the required zone for it to be considered complete
 
 
