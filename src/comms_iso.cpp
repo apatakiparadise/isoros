@@ -1,4 +1,5 @@
 /**************************
+* DEPRECATED - use state_machine_iso.cpp******
 * Module to handle communications between
 * controller, arm model, and unity
 * using rosbridge
